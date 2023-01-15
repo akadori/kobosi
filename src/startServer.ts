@@ -11,9 +11,11 @@ const originalCreateServer = http.createServer;
 let sockets: Array<Socket> = [];
 let closeServer: typeof Server.prototype.close;
 
-function isOption(arg: any): arg is ServerOptions {
-	return arg && typeof arg === "object";
+function isOption(arg: unknown): arg is ServerOptions {
+	return !!arg && typeof arg === "object";
 }
+
+// for overriding http.createServer
 function createEasyToStopServer<
 	Request extends typeof IncomingMessage = typeof IncomingMessage,
 	Response extends typeof ServerResponse = typeof ServerResponse,
@@ -48,20 +50,20 @@ function createEasyToStopServer<
 	return server;
 }
 
-export const startServer = (entryPoint: string) => {
+export const startServer = async (entryPoint: string) => {
 	http.createServer = createEasyToStopServer;
-	require(entryPoint);
+	await require(entryPoint);
 };
 
-export const restartServer = (
+export const restartServer = async (
 	entryPoint: string,
-	serverWillRestart: () => void,
+	serverWillStart: () => void | Promise<void>,
 ) => {
 	sockets.forEach((socket) => {
 		socket.destroy();
 	});
 	sockets = [];
 	closeServer();
-	serverWillRestart();
-	require(entryPoint);
+	await serverWillStart();
+	await require(entryPoint);
 };
